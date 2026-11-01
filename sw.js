@@ -1,15 +1,16 @@
-const C = 'nix-app-v1';
-// Live price services used by the calculator are never cached, so prices are always fresh.
-const LIVE = /(^|\.)(gold-api\.com|frankfurter\.dev|frankfurter\.app|jsdelivr\.net|pages\.dev)$/;
+const C = 'nix-app-v2';
+// Never cached: live price services (calculator) and the Apps Script web app (its address carries the access code).
+const LIVE = /(^|\.)(gold-api\.com|frankfurter\.dev|frankfurter\.app|jsdelivr\.net|pages\.dev|script\.google\.com|script\.googleusercontent\.com)$/;
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'calc.js', 'inventory.js', 'pin.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'logo.png'];
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'calc/', 'calc/index.html', 'calc/logo.png'])));
+  e.waitUntil(caches.open(C).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))));
   self.skipWaiting();
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))));
   self.clients.claim();
 });
-// Network first, so edits show up; cached copy is the offline fallback (same behaviour as the old launcher)
+// Network first, so updates show up straight away; the cached copy is only the offline fallback
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (LIVE.test(new URL(e.request.url).hostname)) return;

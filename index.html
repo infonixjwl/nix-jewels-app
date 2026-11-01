@@ -1,82 +1,118 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
 <title>Nix Jewels</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#0f1b2d">
+<meta name="theme-color" content="#6e0d0d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nix">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<style>
-:root{--bg:#eef2f6;--tile:#fff;--ink:#0f1b2d;--mute:#5d6b80;--line:#d5dde7;--ice:#2b6cb0;--head:#0f1b2d;--headink:#eaf2fa}
-@media(prefers-color-scheme:dark){:root{--bg:#0b1422;--tile:#16243a;--ink:#eaf2fa;--mute:#93a3b8;--line:#243752;--ice:#9cc7ee;--head:#0b1422}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
-header{background:var(--head);color:var(--headink);padding:calc(env(safe-area-inset-top,0px) + 32px) 22px 30px}
-header h1{font:400 2.1rem/1.1 Georgia,"Times New Roman",serif;margin:0 0 6px;letter-spacing:.01em}
-header p{margin:0;color:#9db2c9;font-size:.95rem}
-main{max-width:560px;margin:0 auto;padding:22px 18px calc(env(safe-area-inset-bottom,0px) + 28px)}
-h2{font:600 .9rem/1 system-ui,sans-serif;color:var(--mute);margin:22px 4px 12px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.tile{display:flex;flex-direction:column;justify-content:space-between;min-height:132px;padding:16px;border-radius:22px;background:var(--tile);border:1px solid var(--line);color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
-.tile:active{transform:scale(.97)}
-.tile:focus-visible{outline:3px solid var(--ice);outline-offset:2px}
-.ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:1.5rem;background:var(--bg)}
-.tx b{display:block;font-size:1.05rem;font-weight:600}
-.tx small{display:block;color:var(--mute);font-size:.82rem;margin-top:2px}
-.off{opacity:.55}
-#hint{margin:26px 4px 0;color:var(--mute);font-size:.85rem;display:none}
-/* bottom bar (added for the merged app) */
-body{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
-.nv{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;background:var(--tile);border-top:1px solid var(--line);padding:6px 10px calc(6px + env(safe-area-inset-bottom,0px))}
-.nv a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:12px;color:var(--mute);text-decoration:none;font-size:.78rem;font-weight:600;-webkit-tap-highlight-color:transparent}
-.nv a span{font-size:1.25rem;line-height:1}
-.nv a.on{color:var(--ice)}
-</style>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+<script>if('serviceWorker' in navigator)addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})</script>
 </head>
 <body>
-<header><h1>Nix Jewels</h1></header>
-<main><div id="list"></div><p id="hint">Install: on iPhone tap Share, then Add to Home Screen. On Android tap the browser menu, then Install app.</p></main>
-<nav class="nv" aria-label="Main"><a class="on" href="./" aria-current="page"><span>🏠</span>Home</a><a href="calc/"><span>🧮</span>Calculator</a></nav>
-<script>
-/* ===== EDIT HERE: one line per form or dashboard =====
-   group: the heading it sits under (use any name, e.g. 'Dashboards')
-   icon: any emoji | title | desc: short line | url: the full link */
-const ITEMS = [
-  { group:'Forms', icon:'💎', title:'Piece',            desc:'Add or update a piece',        url:'https://docs.google.com/forms/d/e/1FAIpQLSdh0zXuIUej02hDR00Xb97NI4DQHmo_gaepcWqFbXS54pq-0w/viewform?usp=header' },
-  { group:'Forms', icon:'🔹', title:'Diamond',          desc:'Add or update diamonds',       url:'https://docs.google.com/forms/d/e/1FAIpQLSfL_X2Orxu4IcivKMPYUUCDPS7Cp4PiDmBKF76WYJ0R4H_dKw/viewform?usp=header' },
-  { group:'Forms', icon:'✏️', title:'Fix SKU',          desc:'Correct a wrong SKU',          url:'https://docs.google.com/forms/d/e/1FAIpQLSfXztrc6Lq_yjB0uog5mOxUt_XjNsouk5i2FHEX4oal2INAyw/viewform?usp=header' },
-  { group:'Forms', icon:'🔓', title:'Inventory access', desc:'Urgent manual edit',           url:'https://docs.google.com/forms/d/e/1FAIpQLSd-Cl8hK4d9TDtvRJP8FJjlY-KtOSbiGGYmoeD3hWi4hbR5VA/viewform?usp=header' },
-  // { group:'Dashboards', icon:'📊', title:'Dashboard', desc:'Sales and stock', url:'https://...' },
-];
-/* ===== end of the part you edit ===== */
+<div class="wrap" id="app" hidden>
+<header>
+  <img class="logo" src="logo.png" alt="Nix Jewels" onerror="this.replaceWith(Object.assign(document.createElement('b'),{textContent:'Nix Jewels',className:'wm'}))">
+  <div class="bar"><span class="timer" id="timer"></span><button class="theme" id="lockNow" type="button">Lock</button><button class="theme" id="theme" type="button">Theme</button></div>
+</header>
 
-const root = document.getElementById('list');
-[...new Set(ITEMS.map(i => i.group))].forEach(g => {
-  const h = document.createElement('h2'); h.textContent = g; root.appendChild(h);
-  const grid = document.createElement('div'); grid.className = 'grid'; root.appendChild(grid);
-  ITEMS.filter(i => i.group === g).forEach(i => {
-    const ready = /^https?:\/\//.test(i.url);
-    const t = document.createElement(ready ? 'a' : 'div');
-    t.className = 'tile' + (ready ? '' : ' off');
-    if (ready) { t.href = i.url; t.target = '_blank'; t.rel = 'noopener'; }
-    t.innerHTML = '<span class="ic"></span><span class="tx"><b></b><small></small></span>';
-    t.querySelector('.ic').textContent = i.icon;
-    t.querySelector('b').textContent = i.title;
-    t.querySelector('small').textContent = ready ? i.desc : 'Link not set yet';
-    grid.appendChild(t);
-  });
-});
-if (!(matchMedia('(display-mode: standalone)').matches || navigator.standalone)) {
-  document.getElementById('hint').style.display = 'block';
-}
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-</script>
-<script src="lookup.js"></script>   
+<main id="viewCalc" data-tab="gold">
+<section class="strip" aria-label="Live prices">
+  <div class="tiles">
+    <div class="tile"><span class="k">Gold per oz (USD)</span><b id="tGold">–</b><i class="dot" id="dGold"></i></div>
+    <div class="tile"><span class="k">Gold per gram (USD)</span><b id="tG">–</b><i class="dot" id="dGold2"></i></div>
+    <div class="tile"><span class="k">1 USD in CAD</span><b id="tCad">–</b><i class="dot" id="dFx"></i></div>
+    <div class="tile"><span class="k">1 USD in INR</span><b id="tInr">–</b><i class="dot" id="dFx2"></i></div>
+  </div>
+  <div class="stat"><div class="s"><div id="sGold">Loading gold price…</div><div id="sFx">Loading rates…</div><div>Updates automatically every minute</div></div><button class="btn sm" id="rfAll" type="button">Refresh all</button></div>
+</section>
+
+<nav class="tabs" aria-label="Calculators"><button class="on" data-t="gold" type="button">Gold cost</button><button data-t="fx" type="button">Currency</button></nav>
+
+<div class="grid">
+  <section class="card" id="cGold" aria-labelledby="h-gold">
+    <div class="head"><h2 id="h-gold">Gold cost</h2><button class="btn sm" id="rfGold" type="button">Refresh gold price</button></div>
+    <div id="goldWarn"></div>
+    <label>Gold purity</label>
+    <div class="chips" id="chips">
+      <button class="chip" data-k="9" type="button">9K</button><button class="chip" data-k="10" type="button">10K</button><button class="chip" data-k="14" type="button">14K</button><button class="chip" data-k="18" type="button">18K</button><button class="chip" data-k="21" type="button">21K</button><button class="chip" data-k="22" type="button">22K</button><button class="chip" data-k="24" type="button">24K</button>
+    </div>
+    <input id="karat" type="hidden" value="14">
+    <div class="row r2">
+      <div><label for="wt">Finished weight</label><div class="in"><input id="wt" inputmode="decimal" value="0"><span>g</span></div></div>
+      <div><label for="gw">Gold weight</label><div class="in"><input id="gw" inputmode="decimal" value="0"><span>g</span></div></div>
+    </div>
+    <div class="sub" id="wtNote" style="margin:-4px 0 12px"></div>
+    <div class="row r2">
+      <div><label for="loss">Wastage / loss</label><div class="in"><input id="loss" inputmode="decimal" value="0"><span>%</span></div></div>
+      <div><label for="prem">Dealer premium on spot</label><div class="in"><input id="prem" inputmode="decimal" value="0"><span>%</span></div></div>
+    </div>
+    <div class="row"><div><label for="lab">Labour / making charge</label><div style="display:grid;grid-template-columns:1fr 92px;gap:6px"><input id="lab" inputmode="decimal" value="0"><select id="labCur"><option>USD</option><option selected>CAD</option><option>INR</option></select></div></div></div>
+    <div class="result">
+      <div class="l">Total cost (CAD)</div>
+      <div class="big" id="goldBig">–</div>
+      <div class="gl"></div>
+      <div class="a" id="goldAlt"></div>
+      <div class="b" id="goldBrk"></div>
+      <div class="b" id="goldSub"></div>
+      <button class="btn cp" id="cp" type="button">Copy summary</button>
+    </div>
+    <details><summary>Price per gram by purity</summary>
+      <table><thead><tr><th>Purity</th><th>USD / g</th><th>CAD / g</th><th>INR / g</th></tr></thead><tbody id="pgTbl"></tbody></table>
+      <div class="sub" style="margin-top:8px">Metal value only, with the dealer premium. Excludes wastage and labour.</div></details>
+  </section>
+
+  <section class="card" id="cFx" aria-labelledby="h-cur">
+    <div class="head"><h2 id="h-cur">Currency converter</h2><button class="btn sm" id="rfFx" type="button">Refresh rates</button></div>
+    <div class="row"><div><label for="amt">Amount</label><input id="amt" inputmode="decimal" value="0"></div></div>
+    <div class="row r3">
+      <div><label for="from">From</label><select id="from"><option>USD</option><option>CAD</option><option selected>INR</option></select></div>
+      <button class="ghost" id="swap" type="button" aria-label="Swap currencies">⇄</button>
+      <div><label for="to">To</label><select id="to"><option>USD</option><option selected>CAD</option><option>INR</option></select></div>
+    </div>
+    <div class="result cur"><div class="l">Result</div><div class="big" id="curOut">–</div><div class="gl"></div><div class="b" id="curInv"></div></div>
+    <table><tbody id="curAll"></tbody></table>
+  </section>
+</div>
+<p class="foot">Prices come from free public data services and are indicative, not dealer or bank quotes. Confirm with your supplier or bank before a final quote. 1 troy oz = 31.1035 g. Only your inputs and the last prices are saved in this browser.</p>
+</main>
+
+<main id="viewInv" hidden></main>
+<div id="toast" hidden></div>
+<nav class="nv" aria-label="Main"><button type="button" class="on" data-v="calc" aria-current="page"><span>🧮</span>Calculator</button><button type="button" data-v="inv"><span>📦</span>Inventory</button></nav>
+</div>
+<div id="lock">
+  <div class="lockbox" id="lockEnter" hidden>
+    <img class="lg" src="logo.png" alt="Nix Jewels" onerror="this.hidden=true">
+    <div class="sub">Enter your PIN code. A session lasts 15 minutes.</div>
+    <div class="row"><div><label for="pin">PIN code</label><input id="pin" type="password" autocomplete="off" inputmode="text"></div></div>
+    <div class="err" id="pinErr" role="alert"></div>
+    <button class="btn" id="unlock" type="button" style="width:100%">Unlock</button>
+  </div>
+  <div class="lockbox" id="lockSetup" hidden>
+    <h2>Create your PIN code</h2>
+    <div class="sub">Choose 8 or more characters. Your PIN is never saved. This creates a scrambled code (a hash) to paste into a file called pin.js.</div>
+    <div class="row"><div><label for="np1">New PIN code</label><input id="np1" type="password" autocomplete="new-password"></div>
+    <div><label for="np2">Repeat PIN code</label><input id="np2" type="password" autocomplete="new-password"></div></div>
+    <div class="err" id="setupErr" role="alert"></div>
+    <button class="btn" id="mk" type="button" style="width:100%">Create PIN code</button>
+    <div id="setupOut" hidden style="margin-top:14px">
+      <div class="sub" style="margin-bottom:6px">Save this as a file named <b>pin.js</b> in your repo (create it, or replace the old one), then commit:</div>
+      <textarea id="setupText" readonly></textarea>
+    </div>
+  </div>
+</div>
+<script src="pin.js"></script>
+<script src="app.js"></script>
+<script src="calc.js"></script>
+<script src="inventory.js"></script>
+<script>NixApp.start()</script>
 </body>
 </html>
