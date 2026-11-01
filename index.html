@@ -6,7 +6,7 @@
 <title>Nix Jewels</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#0f1b2d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -31,11 +31,18 @@ h2{font:600 .9rem/1 system-ui,sans-serif;color:var(--mute);margin:22px 4px 12px}
 .tx small{display:block;color:var(--mute);font-size:.82rem;margin-top:2px}
 .off{opacity:.55}
 #hint{margin:26px 4px 0;color:var(--mute);font-size:.85rem;display:none}
+/* bottom bar (added for the merged app) */
+body{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+.nv{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;background:var(--tile);border-top:1px solid var(--line);padding:6px 10px calc(6px + env(safe-area-inset-bottom,0px))}
+.nv a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:12px;color:var(--mute);text-decoration:none;font-size:.78rem;font-weight:600;-webkit-tap-highlight-color:transparent}
+.nv a span{font-size:1.25rem;line-height:1}
+.nv a.on{color:var(--ice)}
 </style>
 </head>
 <body>
 <header><h1>Nix Jewels</h1></header>
 <main><div id="list"></div><p id="hint">Install: on iPhone tap Share, then Add to Home Screen. On Android tap the browser menu, then Install app.</p></main>
+<nav class="nv" aria-label="Main"><a class="on" href="./" aria-current="page"><span>🏠</span>Home</a><a href="calc/"><span>🧮</span>Calculator</a></nav>
 <script>
 /* ===== EDIT HERE: one line per form or dashboard =====
    group: the heading it sits under (use any name, e.g. 'Dashboards')
