@@ -158,7 +158,7 @@
   function render() {
     const terms = $('ivQ').value.trim().toLowerCase().split(/\s+/).filter(Boolean), st = $('ivSt').value, res = $('ivRes');
     // a search looks through every piece; without one, the chosen tab is shown
-    let rows = DATA.pieces.slice().reverse().filter(p => (terms.length || tab === 'all' || group(p) === tab) && (!st || get(p, 'Status') === st) && terms.every(t => p._h.indexOf(t) > -1));
+    let rows = DATA.pieces.slice().reverse().filter(p => (terms.length || tab === 'all' || group(p) === tab) && (!st || String(get(p, 'Status')).toLowerCase() === st.toLowerCase()) && terms.every(t => p._h.indexOf(t) > -1));
     const total = rows.length, filtered = terms.length || st, limit = filtered ? 50 : 30;
     rows = rows.slice(0, limit); res.innerHTML = '';
     if (!rows.length) res.appendChild(el('p', 'iv-note', terms.length || st ? 'No piece matches. Try a shorter search.' : 'No pieces here yet.'));
@@ -167,10 +167,24 @@
       left.appendChild(el('b', '', p._sku));
       const sub = get(p, 'Design / Name') || get(p, 'Item Type'); if (sub) left.appendChild(el('small', '', sub));
       b.appendChild(left);
-      const s = get(p, 'Status'); if (s) b.appendChild(el('span', 'pill', s));
+      const right = el('span', 'iv-right');
+      const s = get(p, 'Status'); if (s) right.appendChild(el('span', 'pill', s));
+      right.appendChild(thumb(p));
+      b.appendChild(right);
       b.onclick = () => openDetail(p); res.appendChild(b);
     });
     $('ivInfo').textContent = (terms.length ? total + ' found in all pieces' : filtered ? total + ' found' : 'Latest ' + rows.length + ' of ' + total) + (total > limit ? ', showing ' + limit : '') + '. Updated ' + stamp();
+  }
+  // Small photo from the piece's Drive link (loaded only when the row is on screen)
+  const driveId = p => { const k = Object.keys(p).find(x => /photo/i.test(x) && /^https?:/.test(p[x])); return k ? (p[k].match(/[-\w]{25,}/) || [])[0] : ''; };
+  function thumb(p) {
+    const box = el('span', 'iv-thumb'), id = driveId(p);
+    if (!id) return box;
+    const im = el('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+    im.src = 'https://drive.google.com/thumbnail?id=' + id + '&sz=w160';
+    im.onerror = () => im.remove();
+    box.appendChild(im);
+    return box;
   }
   function fields(obj, skip) {
     const card = el('div', 'iv-card');
@@ -735,7 +749,7 @@
         const dv = (d.diamonds[p._sku] || []).map(x => Object.keys(x).map(k => x[k]).join(' ')).join(' ');
         p._h = (Object.keys(p).map(k => p[k]).join(' ') + ' ' + dv).toLowerCase();
       });
-      const sts = []; d.pieces.forEach(p => { const s = get(p, 'Status'); if (s && sts.indexOf(s) < 0) sts.push(s); }); sts.sort();
+      const sts = []; d.pieces.forEach(p => { const s = get(p, 'Status'); if (s && !sts.some(x => x.toLowerCase() === s.toLowerCase())) sts.push(s); }); sts.sort();
       const sel = $('ivSt'), cur = sel.value; sel.innerHTML = '';
       [''].concat(sts).forEach(s => { const o = el('option', '', s || 'All statuses'); o.value = s; sel.appendChild(o); });
       sel.value = sts.indexOf(cur) > -1 ? cur : '';

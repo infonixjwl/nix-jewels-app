@@ -152,3 +152,7 @@ button.ftile{font:inherit;text-align:left;color:inherit;cursor:pointer;width:100
 .fm-rate{margin-top:4px}
 .fm-rate .fm-check{margin:8px 0 0}
 select:disabled{opacity:.6}
+.iv-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.iv-thumb{width:52px;height:52px;border-radius:10px;background:var(--soft);overflow:hidden;flex-shrink:0;display:block}
+.iv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+@media (max-width:420px){.iv-row .pill{max-width:110px;white-space:normal;text-align:center}}
