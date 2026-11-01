@@ -315,6 +315,29 @@
     });
   }
 
+  // Fields that had a value and were emptied: erased only after a second press of Save.
+  function erased(F, extra) {
+    return F.filter(x => x.orig && !x.val()).map(x => x.f.q).concat(extra || []);
+  }
+  function eraseCheckbox(label) {
+    const w = el('label', 'fm-check'); const cb = el('input'); cb.type = 'checkbox';
+    w.appendChild(cb); w.appendChild(document.createTextNode(' ' + label)); w.hidden = true;
+    return { w: w, cb: cb };
+  }
+  function dangerBtn(body, label, confirmLabel, run) {
+    const b = el('button', 'fm-del', label); b.type = 'button'; b.hidden = true;
+    let armed = false, t = null;
+    b.onclick = () => {
+      if (!armed) { armed = true; b.textContent = confirmLabel(); b.classList.add('armed'); t = setTimeout(reset, 6000); return; }
+      clearTimeout(t); reset(); run(b);
+    };
+    function reset() { armed = false; b.textContent = label; b.classList.remove('armed'); }
+    b.reset = reset;
+    body.appendChild(b);
+    return b;
+  }
+  function showRes(resBox, text, ok) { resBox.innerHTML = ''; resBox.appendChild(el('div', 'res ' + (ok ? 'ok' : 'bad'), text)); det.scrollTop = 0; }
+
   /* ----- Piece form ----- */
   function openPiece(opt) {
     opt = opt || {};
@@ -340,6 +363,7 @@
     const updF = field({ q: 'SKU', t: 'text', req: true, ph: 'Start typing to search', list: skuList(body) });
     updBox.appendChild(updF.w);
     const updInfo = el('div', 'fm-help'); updBox.appendChild(updInfo);
+    const skuChg = el('div', 'fm-skuchg'); skuChg.hidden = true; updBox.appendChild(skuChg);
     body.appendChild(updBox);
 
     const F = PIECE_F.map(f => field(f));
@@ -348,20 +372,58 @@
     F.forEach(x => grid.appendChild(x.w));
     body.appendChild(grid);
     const oldNotes = el('p', 'fm-help'); body.appendChild(oldNotes);
+    const eraseNotes = eraseCheckbox('Erase the existing notes'); body.appendChild(eraseNotes.w);
     const notes = textarea('Notes', 'Added to any existing notes, never replaces them.'); body.appendChild(notes.w);
     const btn = saveBtn(body, 'Save piece');
+    let confirmKey = '';
+    const delBtn = dangerBtn(body, 'Delete this piece', () => 'Tap again to delete ' + (findPiece(updF.val()) || {})._sku + ' and its diamonds', b => {
+      const p = findPiece(updF.val()); if (!p) return;
+      submit(b, 'deletePiece', { SKU: p._sku }, res => {
+        if (!res.ok) return showRes(resBox, res.text, false);
+        openPiece({ mode: 'new', res: res });
+      });
+    });
 
     function code(q) { const v = byQ(q).val(); return v ? L.codes[v] || '' : ''; }
     function updatePreview() {
       const parts = [code('Item Type'), code('Metal'), code('Main Diamond Shape')];
       preview.textContent = parts.every(Boolean) ? ['NX'].concat(parts, [H.next]).join('-') : 'Choose Item Type, Metal and Main Diamond Shape';
     }
-    ['Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => byQ(q).inp.addEventListener('change', updatePreview));
-    function prefill() {
+    ['Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => byQ(q).inp.addEventListener('change', () => { updatePreview(); updSkuLine(); }));
+    // Update mode: show what the SKU becomes when item type, metal or shape is corrected
+    function updSkuLine() {
+      skuChg.innerHTML = ''; skuChg.hidden = true;
+      const p = mode === 'upd' ? findPiece(updF.val()) : null;
+      if (!p) return;
+      const keys = ['Item Type', 'Metal', 'Main Diamond Shape'];
+      const missing = keys.filter(q => byQ(q).val() && !code(q));
+      const num = (p._sku.match(/-(\d+)$/) || [])[1];
+      const expected = !missing.length && num && keys.every(q => code(q)) ? ['NX'].concat(keys.map(code), [num]).join('-') : '';
+      const changed = keys.some(q => byQ(q).val() !== byQ(q).orig);
+      if (missing.length) { skuChg.textContent = '"' + byQ(missing[0]).val() + '" has no SKU code on the Lookups tab yet, so the SKU cannot be rebuilt.'; skuChg.hidden = false; return; }
+      if (!expected || expected === p._sku) return;
+      skuChg.hidden = false;
+      if (changed) { skuChg.textContent = 'When you save, the SKU changes to ' + expected + ' (same number). Its diamonds move with it.'; return; }
+      skuChg.appendChild(el('span', '', 'This SKU does not match the piece details. It should be ' + expected + '. '));
+      const fix = el('button', 'iv-link', 'Fix the SKU'); fix.type = 'button';
+      fix.onclick = () => submit(fix, 'savePiece', { 'Entry Type': 'Update existing piece', SKU: p._sku, rebuildSku: 'yes' }, res => {
+        if (!res.ok) return showRes(resBox, res.text, false);
+        openPiece({ mode: 'upd', sku: expected, res: res });
+      });
+      skuChg.appendChild(fix);
+    }
+    let loadedSku = null;
+    function prefill(force) {
+      const key = updF.val().toUpperCase();
+      if (force !== true && key === loadedSku) return;     // same piece: keep what has been typed
+      loadedSku = key;
       const p = findPiece(updF.val());
       F.forEach(x => x.set(p ? get(p, x.f.h) : ''));
       oldNotes.textContent = p && get(p, 'Notes') ? 'Existing notes: ' + get(p, 'Notes') : '';
-      updInfo.textContent = p ? [get(p, 'Design / Name'), get(p, 'Status')].filter(Boolean).join(' · ') + '. Change only what is new; blank fields stay as they are.'
+      eraseNotes.w.hidden = !(p && get(p, 'Notes')); eraseNotes.cb.checked = false;
+      delBtn.hidden = !p; delBtn.reset(); confirmKey = '';
+      updSkuLine();
+      updInfo.textContent = p ? [get(p, 'Design / Name'), get(p, 'Status')].filter(Boolean).join(' · ') + '. Change what you need. To erase a value, empty the box and press Save twice.'
                               : (updF.val() ? 'No piece with this SKU yet.' : '');
     }
     updF.inp.addEventListener('input', prefill); updF.inp.addEventListener('change', prefill);
@@ -372,7 +434,7 @@
       newBox.hidden = m !== 'new'; updBox.hidden = m !== 'upd';
       ['Status', 'Item Type'].forEach(q => { byQ(q).w.querySelector('label').textContent = q + (m === 'new' ? ' *' : ''); });
       ['Metal', 'Main Diamond Shape'].forEach(q => { byQ(q).w.querySelector('label').textContent = q + (m === 'new' ? ' *' : ''); });
-      if (m === 'new') { F.forEach(x => x.set('')); oldNotes.textContent = ''; updatePreview(); } else prefill();
+      if (m === 'new') { F.forEach(x => x.set('')); oldNotes.textContent = ''; eraseNotes.w.hidden = true; delBtn.hidden = true; skuChg.hidden = true; loadedSku = null; updatePreview(); } else prefill(true);
     }
     bNew.onclick = () => setMode('new'); bUpd.onclick = () => setMode('upd');
     if (opt.sku) updF.inp.value = opt.sku;
@@ -401,10 +463,17 @@
         out[x.f.q] = v;
       });
       const n = notes.ta.value.trim(); if (n) out.Notes = n;
-      if (mode === 'upd' && Object.keys(out).length <= 2) { resBox.innerHTML = ''; resBox.appendChild(el('div', 'res bad', 'Nothing changed, so nothing was saved.')); det.scrollTop = 0; return; }
+      const clears = mode === 'upd' ? erased(F, eraseNotes.cb.checked ? ['Notes'] : []) : [];
+      if (mode === 'upd' && Object.keys(out).length <= 2 && !clears.length) return showRes(resBox, 'Nothing changed, so nothing was saved.', false);
+      if (clears.length && confirmKey !== clears.join('|')) {
+        confirmKey = clears.join('|');
+        return showRes(resBox, 'You emptied: ' + clears.join(', ') + '. Press Save piece again to erase ' + (clears.length > 1 ? 'these values' : 'this value') + ', or put the value back.', false);
+      }
+      if (clears.length) out.clear = clears;
       submit(btn, 'savePiece', out, (res, unsure) => {
-        if (!res.ok) { resBox.innerHTML = ''; resBox.appendChild(el('div', 'res bad', res.text)); det.scrollTop = 0; return; }
-        const m = res.text.match(/^New piece created (\S+)/), sku = m ? m[1] : out.SKU;
+        if (!res.ok) return showRes(resBox, res.text, false);
+        const m = res.text.match(/^New piece created (\S+)/), rn = res.text.match(/^SKU changed \S+ → (\S+?)\. /);
+        const sku = m ? m[1] : rn ? rn[1] : out.SKU;
         let extra = null;
         if (m) { extra = el('button', 'ghost fm-next', 'Add diamonds for ' + sku); extra.type = 'button'; extra.onclick = () => openDiamond({ sku: sku }); }
         openPiece(m ? { mode: 'new', res: { ok: true, text: res.text, extra: extra } } : { mode: 'upd', sku: sku, res: res });
@@ -435,17 +504,29 @@
     const F = DIA_F.map(f => field(f));
     const grid = el('div', 'fm two'); F.forEach(x => grid.appendChild(x.w)); body.appendChild(grid);
     const oldNotes = el('p', 'fm-help'); body.appendChild(oldNotes);
+    const eraseNotes = eraseCheckbox('Erase the existing notes'); body.appendChild(eraseNotes.w);
     const notes = textarea('Notes', 'Added to any existing notes, never replaces them.'); body.appendChild(notes.w);
     const btn = saveBtn(body, 'Save diamond');
+    let confirmKey = '';
+    const delBtn = dangerBtn(body, 'Remove this diamond group', () => 'Tap again to remove the ' + roleF.val() + ' group', b => {
+      const p = findPiece(skuF.val()); if (!p || !current) return;
+      submit(b, 'deleteDiamond', { SKU: p._sku, 'Diamond Role': roleF.val() }, res => {
+        if (!res.ok) return showRes(resBox, res.text, false);
+        openDiamond({ sku: p._sku, res: res });
+      });
+    });
 
     if (chipsBox) waiting.forEach(s => {
       const c = el('button', 'chip sm', s); c.type = 'button';
       c.onclick = () => { skuF.inp.value = s; sync(); roleF.inp.focus(); };
       chipsBox.appendChild(c);
     });
-    let current = null;
-    function sync() {
+    let current = null, loadedKey = null;
+    function sync(force) {
       const p = findPiece(skuF.val()), role = roleF.val();
+      const key = skuF.val().toUpperCase() + '|' + role;
+      if (force !== true && key === loadedKey) return;      // same piece and role: keep what has been typed
+      loadedKey = key;
       const list = p ? DATA.diamonds[p._sku] || [] : [];
       have.innerHTML = '';
       if (p) {
@@ -464,12 +545,14 @@
       current = p && role ? list.find(d => get(d, 'Diamond Role') === role) || null : null;
       F.forEach(x => x.set(current ? get(current, x.f.h) : ''));
       oldNotes.textContent = current && get(current, 'Notes') ? 'Existing notes: ' + get(current, 'Notes') : '';
-      state.textContent = p && role ? (current ? 'Updating the ' + role + ' group. Change only what is new.' : 'New ' + role + ' group for this piece.') : '';
+      eraseNotes.w.hidden = !(current && get(current, 'Notes')); eraseNotes.cb.checked = false;
+      delBtn.hidden = !current; delBtn.reset(); confirmKey = '';
+      state.textContent = p && role ? (current ? 'Updating the ' + role + ' group. Change what you need; to erase a value, empty the box and press Save twice.' : 'New ' + role + ' group for this piece.') : '';
     }
     skuF.inp.addEventListener('input', sync); skuF.inp.addEventListener('change', sync); roleF.inp.addEventListener('change', sync);
     if (opt.sku) skuF.inp.value = opt.sku;
     if (opt.role) roleF.set(opt.role);
-    sync();
+    sync(true);
 
     btn.onclick = () => {
       let ok = F.map(check).every(Boolean);
@@ -485,9 +568,15 @@
         out[x.f.q] = v;
       });
       const n = notes.ta.value.trim(); if (n) out.Notes = n;
-      if (current && Object.keys(out).length <= 2) { resBox.innerHTML = ''; resBox.appendChild(el('div', 'res bad', 'Nothing changed, so nothing was saved.')); det.scrollTop = 0; return; }
+      const clears = current ? erased(F, eraseNotes.cb.checked ? ['Notes'] : []) : [];
+      if (current && Object.keys(out).length <= 2 && !clears.length) return showRes(resBox, 'Nothing changed, so nothing was saved.', false);
+      if (clears.length && confirmKey !== clears.join('|')) {
+        confirmKey = clears.join('|');
+        return showRes(resBox, 'You emptied: ' + clears.join(', ') + '. Press Save diamond again to erase ' + (clears.length > 1 ? 'these values' : 'this value') + ', or put the value back.', false);
+      }
+      if (clears.length) out.clear = clears;
       submit(btn, 'saveDiamond', out, res => {
-        if (!res.ok) { resBox.innerHTML = ''; resBox.appendChild(el('div', 'res bad', res.text)); det.scrollTop = 0; return; }
+        if (!res.ok) return showRes(resBox, res.text, false);
         openDiamond({ sku: p._sku, res: res });
       });
     };

@@ -140,3 +140,9 @@ button.ftile{font:inherit;text-align:left;color:inherit;cursor:pointer;width:100
 .fm-alt{display:inline-block;margin-top:8px;font-size:13px;color:var(--muted)}
 .fm-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
 .iv-conn{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 12px}.iv-conn.test{color:#9b1c1c}
+.fm-skuchg{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:9px 11px;font-size:13.5px;margin-top:8px;overflow-wrap:anywhere}
+.fm-skuchg .iv-link{color:var(--brand);padding:4px 0;min-height:0;text-decoration:underline}
+.fm-check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink);margin:0 2px 10px;cursor:pointer}
+.fm-check input{width:18px;height:18px;min-height:0;padding:0}
+.fm-del{display:block;width:100%;margin:10px 0 calc(16px + env(safe-area-inset-bottom,0px));background:none;border:1px solid var(--line);color:#a12a2a;border-radius:10px;padding:10px;font:inherit;font-weight:600;cursor:pointer;min-height:44px}
+.fm-del.armed{background:#a12a2a;color:#fff;border-color:#a12a2a}
