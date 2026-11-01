@@ -146,3 +146,9 @@ button.ftile{font:inherit;text-align:left;color:inherit;cursor:pointer;width:100
 .fm-check input{width:18px;height:18px;min-height:0;padding:0}
 .fm-del{display:block;width:100%;margin:10px 0 calc(16px + env(safe-area-inset-bottom,0px));background:none;border:1px solid var(--line);color:#a12a2a;border-radius:10px;padding:10px;font:inherit;font-weight:600;cursor:pointer;min-height:44px}
 .fm-del.armed{background:#a12a2a;color:#fff;border-color:#a12a2a}
+.iv-tabs{margin:0 0 10px}
+.iv-tabs button{font-size:13.5px;padding:8px 4px}
+.fm-row1{margin-top:18px}.fm-row1 .btn{width:100%}
+.fm-rate{margin-top:4px}
+.fm-rate .fm-check{margin:8px 0 0}
+select:disabled{opacity:.6}

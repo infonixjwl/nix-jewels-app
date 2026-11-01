@@ -43,7 +43,7 @@
     '<div class="iv-wrap"><div id="ivLogin"></div><div id="ivMain" hidden>' +
     '<div class="iv-meta"><span id="ivInfo"></span><span><button class="iv-link" id="ivRef" type="button">Refresh</button><button class="iv-link" id="ivLock" type="button">Lock</button></span></div>' +
     '<div id="ivForms"></div><div id="ivDash"></div>' +
-    '<div id="ivFind" hidden><h2 class="iv-h">Find a piece</h2><div class="iv-bar"><input id="ivQ" type="search" placeholder="SKU, name, metal, certificate" autocomplete="off" enterkeyhint="search"><select id="ivSt"></select></div><div id="ivRes"></div></div>' +
+    '<div id="ivFind" hidden><h2 class="iv-h">Find a piece</h2><div class="seg iv-tabs" id="ivTabs"></div><div class="iv-bar"><input id="ivQ" type="search" placeholder="SKU, name, metal, certificate" autocomplete="off" enterkeyhint="search"><select id="ivSt"></select></div><div id="ivRes"></div></div>' +
     '</div></div>';
   const det = el('div', 'iv-det'); det.id = 'ivDet'; det.hidden = true; document.body.appendChild(det);
   const stamp = () => new Date(DATA.fetched || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -140,12 +140,28 @@
   }
 
   /* ================= PIECE LIST AND DETAIL ================= */
+  // In stock = in Canada (including reserved); Sold; In progress = everything before arrival
+  const group = p => { const s = String(get(p, 'Status')).trim(); return /^sold$/i.test(s) ? 'sold' : /in stock|reserved/i.test(s) ? 'stock' : 'progress'; };
+  const TABS = [['stock', 'In stock'], ['progress', 'In progress'], ['sold', 'Sold'], ['all', 'All']];
+  let tab = 'stock';
+  try { tab = ss.get('nix_inv_tab') || 'stock'; } catch (e) {}
+  function renderTabs() {
+    const box = $('ivTabs'); box.innerHTML = '';
+    const n = { stock: 0, progress: 0, sold: 0, all: DATA.pieces.length };
+    DATA.pieces.forEach(p => n[group(p)]++);
+    TABS.forEach(([k, label]) => {
+      const b = el('button', k === tab ? 'on' : '', label + ' (' + n[k] + ')'); b.type = 'button';
+      b.onclick = () => { tab = k; ss.set('nix_inv_tab', k); renderTabs(); render(); };
+      box.appendChild(b);
+    });
+  }
   function render() {
     const terms = $('ivQ').value.trim().toLowerCase().split(/\s+/).filter(Boolean), st = $('ivSt').value, res = $('ivRes');
-    let rows = DATA.pieces.slice().reverse().filter(p => (!st || get(p, 'Status') === st) && terms.every(t => p._h.indexOf(t) > -1));
-    const total = rows.length, filtered = terms.length || st, limit = filtered ? 50 : 20;
+    // a search looks through every piece; without one, the chosen tab is shown
+    let rows = DATA.pieces.slice().reverse().filter(p => (terms.length || tab === 'all' || group(p) === tab) && (!st || get(p, 'Status') === st) && terms.every(t => p._h.indexOf(t) > -1));
+    const total = rows.length, filtered = terms.length || st, limit = filtered ? 50 : 30;
     rows = rows.slice(0, limit); res.innerHTML = '';
-    if (!rows.length) res.appendChild(el('p', 'iv-note', 'No piece matches. Try a shorter search.'));
+    if (!rows.length) res.appendChild(el('p', 'iv-note', terms.length || st ? 'No piece matches. Try a shorter search.' : 'No pieces here yet.'));
     rows.forEach(p => {
       const b = el('button', 'iv-row'), left = el('span'); b.type = 'button';
       left.appendChild(el('b', '', p._sku));
@@ -154,7 +170,7 @@
       const s = get(p, 'Status'); if (s) b.appendChild(el('span', 'pill', s));
       b.onclick = () => openDetail(p); res.appendChild(b);
     });
-    $('ivInfo').textContent = (filtered ? total + ' found' + (total > limit ? ', showing ' + limit : '') : 'Latest ' + rows.length + ' of ' + DATA.pieces.length) + '. Updated ' + stamp();
+    $('ivInfo').textContent = (terms.length ? total + ' found in all pieces' : filtered ? total + ' found' : 'Latest ' + rows.length + ' of ' + total) + (total > limit ? ', showing ' + limit : '') + '. Updated ' + stamp();
   }
   function fields(obj, skip) {
     const card = el('div', 'iv-card');
@@ -178,8 +194,9 @@
   function closePanel() { det.hidden = true; document.body.style.overflow = ''; }
   window.addEventListener('popstate', closePanel);
 
-  function openDetail(p) {
+  function openDetail(p, res) {
     const body = openPanel(p._sku);
+    if (res) resultBox(body, res);
     const nm = get(p, 'Design / Name'); if (nm) body.appendChild(el('p', 'nm', nm));
     const st = get(p, 'Status'); if (st) body.appendChild(el('span', 'pill', st));
     const pk = Object.keys(p).find(k => /photo/i.test(k) && /^https?:/.test(p[k]));
@@ -198,11 +215,79 @@
     });
     const note = get(p, 'Notes'); if (note) { body.appendChild(el('h2', 'iv-h', 'Notes')); body.appendChild(el('p', 'iv-note', note)); }
     if (DATA.role === 'full' && token) {
+      const sold = group(p) === 'sold';
+      const top = el('div', 'fm-row1');
+      const bs = el('button', 'btn', sold ? 'Edit sale' : 'Mark as sold'); bs.type = 'button'; bs.onclick = () => openSale(p._sku);
+      top.appendChild(bs); body.appendChild(top);
       const acts = el('div', 'fm-row2');
       const b1 = el('button', 'ghost', 'Update this piece'); b1.type = 'button'; b1.onclick = () => openPiece({ mode: 'upd', sku: p._sku });
       const b2 = el('button', 'ghost', 'Add or update diamonds'); b2.type = 'button'; b2.onclick = () => openDiamond({ sku: p._sku });
       acts.appendChild(b1); acts.appendChild(b2); body.appendChild(acts);
+      if (sold) { const bu = el('button', 'fm-del', 'Undo sale'); bu.type = 'button'; bu.hidden = false; bu.onclick = () => openUndo(p._sku); body.appendChild(bu); }
     }
+  }
+
+  /* ----- Mark as sold / Edit sale ----- */
+  const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const money = v => { const n = parseFloat(String(v || '').replace(/[^\d.\-]/g, '')); return isNaN(n) ? null : n; };
+  function openSale(sku, res) {
+    const p = findPiece(sku); if (!p) return;
+    const sold = group(p) === 'sold';
+    const body = openPanel(sold ? 'Edit sale' : 'Mark as sold');
+    if (needOnline(body)) return;
+    const resBox = resultBox(body, res);
+    body.appendChild(el('p', 'fm-hint', p._sku + (get(p, 'Design / Name') ? ' · ' + get(p, 'Design / Name') : '')));
+    const landed = money(get(p, 'Total Landed Cost (CAD)')), asking = money(get(p, 'Asking Price (CAD)'));
+    const facts = el('div', 'fm-sku');
+    facts.appendChild(el('div', 'fm-help', 'Landed cost: ' + (landed !== null ? 'CAD ' + landed.toFixed(2) : 'not calculated yet') + (asking !== null ? ' · Asking price: CAD ' + asking.toFixed(2) : '')));
+    const profit = el('b'); facts.appendChild(profit); body.appendChild(facts);
+    const priceF = field({ q: 'Sold Price (CAD)', t: 'num', req: true });
+    const dateF = field({ q: 'Sold Date', t: 'text' }); dateF.inp.type = 'date';
+    const buyerF = field({ q: 'Buyer / Order ID', t: 'text' });
+    const chanF = field({ q: 'Sales Channel', t: 'sel', o: 'channel' });
+    const grid = el('div', 'fm two'); [priceF, dateF, buyerF, chanF].forEach(x => grid.appendChild(x.w)); body.appendChild(grid);
+    const notes = textarea('Notes', 'Added to the piece notes.'); body.appendChild(notes.w);
+    priceF.set(sold ? get(p, 'Sold Price (CAD)') : (asking !== null ? asking : ''));
+    const sd = String(get(p, 'Sold Date') || '');
+    dateF.inp.value = /^\d{4}-\d{2}-\d{2}/.test(sd) ? sd.slice(0, 10) : today();
+    buyerF.set(get(p, 'Buyer / Order ID')); chanF.set(get(p, 'Sales Channel'));
+    function showProfit() {
+      const pr = money(priceF.val());
+      profit.textContent = pr !== null && landed !== null ? 'Profit: CAD ' + (pr - landed).toFixed(2) : '';
+    }
+    priceF.inp.addEventListener('input', showProfit); showProfit();
+    const btn = saveBtn(body, sold ? 'Save sale changes' : 'Mark as sold');
+    btn.onclick = () => {
+      if (!check(priceF)) return;
+      if (!(money(priceF.val()) > 0)) { priceF.er.textContent = 'Enter the sold price.'; return; }
+      const out = { SKU: p._sku, 'Sold Price (CAD)': priceF.val().replace(/,/g, ''), 'Sold Date': dateF.inp.value || today(), 'Buyer / Order ID': buyerF.val(), 'Sales Channel': chanF.val() };
+      const n = notes.ta.value.trim(); if (n) out.Notes = n;
+      submit(btn, 'markSold', out, r => {
+        if (!r.ok) return showRes(resBox, r.text, false);
+        openDetail(findPiece(p._sku) || p, r);
+      });
+    };
+  }
+
+  /* ----- Undo sale ----- */
+  function openUndo(sku) {
+    const p = findPiece(sku); if (!p) return;
+    const body = openPanel('Undo sale');
+    if (needOnline(body)) return;
+    const resBox = resultBox(body);
+    body.appendChild(el('p', 'fm-hint', p._sku + ' goes back into inventory. Its row on the Sales tab is kept and marked Returned.'));
+    const stF = field({ q: 'Status after undo', t: 'sel', o: 'status' });
+    Array.prototype.slice.call(stF.inp.options).forEach(o => { if (/^sold$/i.test(o.value)) o.remove(); });
+    stF.set('In stock (Canada)');
+    const reasonF = field({ q: 'Reason', t: 'text', ph: 'e.g. customer returned it' });
+    const grid = el('div', 'fm two'); grid.appendChild(stF.w); grid.appendChild(reasonF.w); body.appendChild(grid);
+    const go = dangerBtn(body, 'Undo sale', () => 'Tap again to undo the sale of ' + p._sku, b => {
+      submit(b, 'undoSale', { SKU: p._sku, Status: stF.val() || 'In stock (Canada)', Reason: reasonF.val() }, r => {
+        if (!r.ok) return showRes(resBox, r.text, false);
+        openDetail(findPiece(p._sku) || p, r);
+      });
+    });
+    go.hidden = false;
   }
 
   /* ================= IN-APP FORMS ================= */
@@ -219,6 +304,7 @@
     { q: 'Gold Cost (INR)', h: 'Gold Cost (INR)', t: 'num', help: COST_HELP },
     { q: 'Labour (INR)', h: 'Labour (INR)', t: 'num', help: COST_HELP },
     { q: 'Other Charges (INR)', h: 'Other Charges (INR)', t: 'num', help: COST_HELP },
+    { q: 'Asking Price (CAD)', h: 'Asking Price (CAD)', t: 'num' },
     { q: 'Shipment ID', h: 'Shipment ID', t: 'sel', o: 'shipments', help: 'Leave blank until the piece ships. New shipments are added on the Shipments tab.' }
   ];
   const DIA_F = [
@@ -291,7 +377,7 @@
   }
   function skuList(body) {
     const dl = el('datalist'); dl.id = 'ivSkus' + (++uid);
-    DATA.pieces.slice().reverse().forEach(p => { const o = el('option'); o.value = p._sku; const n = get(p, 'Design / Name'); if (n) o.label = n; dl.appendChild(o); });
+    DATA.pieces.slice(-2000).reverse().forEach(p => { const o = el('option'); o.value = p._sku; const n = get(p, 'Design / Name'); if (n) o.label = n; dl.appendChild(o); });
     body.appendChild(dl);
     return dl.id;
   }
@@ -367,10 +453,36 @@
     body.appendChild(updBox);
 
     const F = PIECE_F.map(f => field(f));
+    // Status: "Sold" is set only through Mark as sold
+    Array.prototype.slice.call(F[0].inp.options).forEach(o => { if (/^sold$/i.test(o.value)) o.remove(); });
+
+    // Locked exchange rate (only once the tracker has the Locked Rate column)
+    const RATE = 'Locked Rate (INR to CAD)', hasRate = (DATA.ph || []).indexOf(RATE) > -1, live = (DATA.lists || {}).liveRate;
+    const rateBox = el('div', 'fm-sku fm-rate'); rateBox.hidden = !hasRate;
+    const rateInfo = el('div', 'fm-help'); rateBox.appendChild(rateInfo);
+    const rateTick = eraseCheckbox(''); rateBox.appendChild(rateTick.w);
+    const rateF = field({ q: 'Exchange rate (1 INR in CAD)', t: 'num', ph: '0.0165' }); rateBox.appendChild(rateF.w);
+    const liveText = live ? 'Google rate on ' + live.date + ': ' + live.rate + '. Change it if you paid a different rate.' : 'Google rate is not available right now. Type the rate you paid.';
     const byQ = q => F.find(x => x.f.q === q);
     const grid = el('div', 'fm two');
     F.forEach(x => grid.appendChild(x.w));
     body.appendChild(grid);
+    body.appendChild(rateBox);
+    function rateUi(p) {
+      if (!hasRate) return;
+      const lockedNow = p ? get(p, RATE) : '';
+      if (mode === 'new') {
+        rateInfo.textContent = 'This ring\'s costs are converted to CAD at this rate, locked when you save. ' + liveText;
+        rateTick.w.hidden = true; rateF.w.hidden = false; rateF.set(live ? live.rate : '');
+        return;
+      }
+      rateInfo.textContent = !p ? '' : lockedNow ? 'Locked rate: ' + lockedNow + (get(p, 'Rate Date') ? ' (' + get(p, 'Rate Date') + ')' : '') + '.' : 'No locked rate: this piece uses its shipment\'s rate.';
+      rateTick.w.hidden = !p;
+      rateTick.w.lastChild.textContent = ' ' + (lockedNow ? 'Change the locked rate' : 'Lock a rate for this piece');
+      rateTick.cb.checked = false; rateF.w.hidden = true; rateF.set(live ? live.rate : '');
+      rateF.w.querySelector('.fm-help') || rateF.w.insertBefore(el('div', 'fm-help', liveText), rateF.er);
+    }
+    rateTick.cb.addEventListener('change', () => { rateF.w.hidden = !rateTick.cb.checked; });
     const oldNotes = el('p', 'fm-help'); body.appendChild(oldNotes);
     const eraseNotes = eraseCheckbox('Erase the existing notes'); body.appendChild(eraseNotes.w);
     const notes = textarea('Notes', 'Added to any existing notes, never replaces them.'); body.appendChild(notes.w);
@@ -419,6 +531,10 @@
       loadedSku = key;
       const p = findPiece(updF.val());
       F.forEach(x => x.set(p ? get(p, x.f.h) : ''));
+      const soldP = p && group(p) === 'sold';
+      F[0].inp.disabled = !!soldP;
+      F[0].er.textContent = soldP ? 'Sold. To change the status, use Undo sale on the piece screen.' : '';
+      rateUi(p);
       oldNotes.textContent = p && get(p, 'Notes') ? 'Existing notes: ' + get(p, 'Notes') : '';
       eraseNotes.w.hidden = !(p && get(p, 'Notes')); eraseNotes.cb.checked = false;
       delBtn.hidden = !p; delBtn.reset(); confirmKey = '';
@@ -434,7 +550,7 @@
       newBox.hidden = m !== 'new'; updBox.hidden = m !== 'upd';
       ['Status', 'Item Type'].forEach(q => { byQ(q).w.querySelector('label').textContent = q + (m === 'new' ? ' *' : ''); });
       ['Metal', 'Main Diamond Shape'].forEach(q => { byQ(q).w.querySelector('label').textContent = q + (m === 'new' ? ' *' : ''); });
-      if (m === 'new') { F.forEach(x => x.set('')); oldNotes.textContent = ''; eraseNotes.w.hidden = true; delBtn.hidden = true; skuChg.hidden = true; loadedSku = null; updatePreview(); } else prefill(true);
+      if (m === 'new') { F.forEach(x => x.set('')); F[0].inp.disabled = false; oldNotes.textContent = ''; eraseNotes.w.hidden = true; delBtn.hidden = true; skuChg.hidden = true; loadedSku = null; updatePreview(); rateUi(null); } else prefill(true);
     }
     bNew.onclick = () => setMode('new'); bUpd.onclick = () => setMode('upd');
     if (opt.sku) updF.inp.value = opt.sku;
@@ -443,6 +559,13 @@
     btn.onclick = () => {
       let ok = F.map(check).every(Boolean);
       const out = { 'Entry Type': mode === 'new' ? 'New piece' : 'Update existing piece' };
+      const sendRate = hasRate && !rateF.w.hidden;
+      if (sendRate) {
+        const rv = parseFloat(rateF.val().replace(/,/g, ''));
+        if (mode === 'new' && !rateF.val()) { rateF.er.textContent = 'Enter the exchange rate (1 INR in CAD), about 0.016.'; ok = false; }
+        else if (rateF.val() && !(rv > 0.002 && rv < 0.1)) { rateF.er.textContent = 'This should be 1 INR in CAD, about 0.016 (not CAD to INR).'; ok = false; }
+        else if (rateF.val()) out[RATE] = String(rv);
+      }
       if (mode === 'new') {
         ['Status', 'Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => {
           if (!byQ(q).val()) { byQ(q).er.textContent = 'Required for a new piece.'; ok = false; }
@@ -459,11 +582,12 @@
       F.forEach(x => {
         let v = x.val(); if (!v) return;
         if (mode === 'upd' && v === x.orig) return;          // unchanged values are not re-sent
+        if (x.f.q === 'Status' && x.inp.disabled) return;
         if (x.f.t === 'num') v = v.replace(/,/g, '');
         out[x.f.q] = v;
       });
       const n = notes.ta.value.trim(); if (n) out.Notes = n;
-      const clears = mode === 'upd' ? erased(F, eraseNotes.cb.checked ? ['Notes'] : []) : [];
+      const clears = mode === 'upd' ? erased(F.filter(x => !x.inp.disabled), eraseNotes.cb.checked ? ['Notes'] : []) : [];
       if (mode === 'upd' && Object.keys(out).length <= 2 && !clears.length) return showRes(resBox, 'Nothing changed, so nothing was saved.', false);
       if (clears.length && confirmKey !== clears.join('|')) {
         confirmKey = clears.join('|');
@@ -583,8 +707,28 @@
   }
 
   /* ================= DATA ================= */
+  // The server sends pieces and diamonds as a header row plus value rows (smaller and faster at scale).
+  function expand(d) {
+    if (!d.ph || d.pieces) return d;
+    const si = d.ph.findIndex(h => h.toUpperCase() === 'SKU');
+    d.pieces = d.pr.map(r => {
+      const o = {};
+      d.ph.forEach((h, i) => { const v = r[i]; if (h && v !== '' && v != null) o[h] = v; });
+      o._sku = String(r[si]).trim().toUpperCase();
+      return o;
+    });
+    const di = d.dh.findIndex(h => h.toUpperCase() === 'SKU');
+    d.diamonds = {};
+    d.dr.forEach(r => {
+      const s = String(r[di]).trim().toUpperCase(); if (!s) return;
+      const o = {};
+      d.dh.forEach((h, i) => { const v = r[i]; if (i !== di && h && v !== '' && v != null) o[h] = v; });
+      (d.diamonds[s] = d.diamonds[s] || []).push(o);
+    });
+    return d;
+  }
   function setData(d) {
-    DATA = d; $('ivLogin').innerHTML = ''; $('ivMain').hidden = false;
+    DATA = expand(d); $('ivLogin').innerHTML = ''; $('ivMain').hidden = false;
     renderForms(); renderDash(d.dash);
     if (d.role === 'full' && d.pieces) {
       d.pieces.forEach(p => {
@@ -595,7 +739,7 @@
       const sel = $('ivSt'), cur = sel.value; sel.innerHTML = '';
       [''].concat(sts).forEach(s => { const o = el('option', '', s || 'All statuses'); o.value = s; sel.appendChild(o); });
       sel.value = sts.indexOf(cur) > -1 ? cur : '';
-      $('ivFind').hidden = false; render();
+      $('ivFind').hidden = false; renderTabs(); render();
     } else { $('ivFind').hidden = true; $('ivInfo').textContent = 'Updated ' + stamp(); }
   }
 
