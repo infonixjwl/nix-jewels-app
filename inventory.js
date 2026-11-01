@@ -1,15 +1,7 @@
-/* Nix app: Inventory view – dashboard, piece search and details, and the in-app Piece and Diamond forms.
+/* Nix app: Inventory view – dashboard, piece search and details, and the Piece and Diamond forms.
    Talks to the Apps Script web app (doPost in the AppApi file). A code entry unlocks Inventory for 15 minutes. */
 (function () {
   const LIVE_URL = 'https://script.google.com/macros/s/AKfycby4IDr0w-aAu54uZzLpOZu2XEE0y2k7pR-zzFK9obZwg9Os_Z6qi-aMZJm5aRIcCMhQBQ/exec';
-  // Google Forms: Fix SKU and Inventory access still open these (they move into the app in step 3).
-  // Piece and Diamond keep a "use the Google Form instead" link while both are in use.
-  const FORMS = {
-    piece:   'https://docs.google.com/forms/d/e/1FAIpQLSdh0zXuIUej02hDR00Xb97NI4DQHmo_gaepcWqFbXS54pq-0w/viewform?usp=header',
-    diamond: 'https://docs.google.com/forms/d/e/1FAIpQLSfL_X2Orxu4IcivKMPYUUCDPS7Cp4PiDmBKF76WYJ0R4H_dKw/viewform?usp=header',
-    fix:     'https://docs.google.com/forms/d/e/1FAIpQLSfXztrc6Lq_yjB0uog5mOxUt_XjNsouk5i2FHEX4oal2INAyw/viewform?usp=header',
-    access:  'https://docs.google.com/forms/d/e/1FAIpQLSd-Cl8hK4d9TDtvRJP8FJjlY-KtOSbiGGYmoeD3hWi4hbR5VA/viewform?usp=header'
-  };
   const SESSION_MS = 15 * 60 * 1000;
   const COST_HELP = 'Enter 0 if there is no cost. Leave blank if not known yet.';
 
@@ -144,8 +136,6 @@
     };
     tile('💎', 'Piece', 'Add or update a piece', () => openPiece());
     tile('🔹', 'Diamond', 'Add or update diamonds', () => openDiamond());
-    tile('✏️', 'Fix SKU', 'Correct a wrong SKU (Google Form)', FORMS.fix);
-    tile('🔓', 'Inventory access', 'Urgent manual edit (Google Form)', FORMS.access);
     box.appendChild(grid);
   }
 
@@ -306,10 +296,9 @@
     return dl.id;
   }
   const findPiece = s => { s = String(s || '').trim().toUpperCase(); return DATA.pieces.find(p => p._sku === s) || null; };
-  function saveBtn(body, label, googleUrl) {
+  function saveBtn(body, label) {
     const bar = el('div', 'fm-actions');
     const btn = el('button', 'btn', label); btn.type = 'button'; bar.appendChild(btn);
-    const alt = el('a', 'fm-alt', 'Use the Google Form instead'); alt.href = googleUrl; alt.target = '_blank'; alt.rel = 'noopener'; bar.appendChild(alt);
     body.appendChild(bar);
     return btn;
   }
@@ -332,7 +321,7 @@
     const body = openPanel('Piece');
     if (needOnline(body)) return;
     const L = DATA.lists, H = DATA.hints;
-    let mode = opt.mode || 'new', manual = false;
+    let mode = opt.mode || 'new';
     const resBox = resultBox(body, opt.res);
 
     const seg = el('div', 'seg');
@@ -341,12 +330,10 @@
 
     // SKU area
     const newBox = el('div', 'fm-sku');
-    newBox.appendChild(el('span', 'fm-help', 'SKU (built from item type, metal and shape)'));
+    newBox.appendChild(el('span', 'fm-help', 'SKU (built automatically from item type, metal and shape)'));
     const preview = el('b'); newBox.appendChild(preview);
     const skuNote = el('div', 'fm-help', 'The running number is confirmed when you save. Last created: ' + (H.last.join(', ') || 'none yet'));
     newBox.appendChild(skuNote);
-    const typeOwn = el('button', 'iv-link', 'Type the SKU myself'); typeOwn.type = 'button'; newBox.appendChild(typeOwn);
-    const ownF = field({ q: 'SKU', t: 'text', ph: 'NX-RG-14YG-RND-0001' }); ownF.w.hidden = true; newBox.appendChild(ownF.w);
     body.appendChild(newBox);
 
     const updBox = el('div');
@@ -362,22 +349,14 @@
     body.appendChild(grid);
     const oldNotes = el('p', 'fm-help'); body.appendChild(oldNotes);
     const notes = textarea('Notes', 'Added to any existing notes, never replaces them.'); body.appendChild(notes.w);
-    const btn = saveBtn(body, 'Save piece', FORMS.piece);
+    const btn = saveBtn(body, 'Save piece');
 
     function code(q) { const v = byQ(q).val(); return v ? L.codes[v] || '' : ''; }
     function updatePreview() {
-      if (manual) return;
       const parts = [code('Item Type'), code('Metal'), code('Main Diamond Shape')];
       preview.textContent = parts.every(Boolean) ? ['NX'].concat(parts, [H.next]).join('-') : 'Choose Item Type, Metal and Main Diamond Shape';
     }
     ['Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => byQ(q).inp.addEventListener('change', updatePreview));
-    typeOwn.onclick = () => {
-      manual = !manual; ownF.w.hidden = !manual;
-      typeOwn.textContent = manual ? 'Build the SKU for me' : 'Type the SKU myself';
-      preview.hidden = manual; skuNote.hidden = manual;
-      if (manual && !ownF.val() && /^NX-/.test(preview.textContent)) ownF.inp.value = preview.textContent;
-      if (!manual) updatePreview();
-    };
     function prefill() {
       const p = findPiece(updF.val());
       F.forEach(x => x.set(p ? get(p, x.f.h) : ''));
@@ -403,16 +382,12 @@
       let ok = F.map(check).every(Boolean);
       const out = { 'Entry Type': mode === 'new' ? 'New piece' : 'Update existing piece' };
       if (mode === 'new') {
-        ['Status', 'Item Type'].concat(manual ? [] : ['Metal', 'Main Diamond Shape']).forEach(q => {
+        ['Status', 'Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => {
           if (!byQ(q).val()) { byQ(q).er.textContent = 'Required for a new piece.'; ok = false; }
         });
-        if (manual) {
-          const s = ownF.val().toUpperCase();
-          if (!s) { ownF.er.textContent = 'Type the SKU, or let the app build it.'; ok = false; }
-          else if (findPiece(s)) { ownF.er.textContent = 'This SKU already exists. Choose "Update existing piece".'; ok = false; }
-          out.SKU = s;
-        } else if (!/^NX-/.test(preview.textContent)) ok = false;
-        else out.autoSku = 'yes';
+        ['Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => {
+          if (byQ(q).val() && !code(q)) { byQ(q).er.textContent = 'This option has no SKU code on the Lookups tab yet. Add its code there first.'; ok = false; }
+        });
       } else {
         const p = findPiece(updF.val());
         if (!p) { updF.er.textContent = updF.val() ? 'No piece with this SKU. Pick one from the list.' : 'Choose the piece to update.'; ok = false; }
@@ -461,7 +436,7 @@
     const grid = el('div', 'fm two'); F.forEach(x => grid.appendChild(x.w)); body.appendChild(grid);
     const oldNotes = el('p', 'fm-help'); body.appendChild(oldNotes);
     const notes = textarea('Notes', 'Added to any existing notes, never replaces them.'); body.appendChild(notes.w);
-    const btn = saveBtn(body, 'Save diamond', FORMS.diamond);
+    const btn = saveBtn(body, 'Save diamond');
 
     if (chipsBox) waiting.forEach(s => {
       const c = el('button', 'chip sm', s); c.type = 'button';
