@@ -314,7 +314,7 @@
     { q: 'Design / Name', h: 'Design / Name', t: 'text' },
     { q: 'Size', h: 'Size', t: 'text' },
     { q: 'Gold Weight (g)', h: 'Gold Weight (g)', t: 'num' },
-    { q: 'Photo Link', h: 'Photo Link (Drive)', t: 'url', help: 'Paste the Google Drive link' },
+    { q: 'Photo Link', h: 'Photo Link (Drive)', t: 'url', help: 'Paste the Google Drive link, or choose a photo below' },
     { q: 'Gold Cost (INR)', h: 'Gold Cost (INR)', t: 'num', help: COST_HELP },
     { q: 'Labour (INR)', h: 'Labour (INR)', t: 'num', help: COST_HELP },
     { q: 'Other Charges (INR)', h: 'Other Charges (INR)', t: 'num', help: COST_HELP },
@@ -328,7 +328,7 @@
     { q: 'Color / Clarity', h: 'Color / Clarity', t: 'text', ph: 'e.g. F / VS1' },
     { q: 'Certificate No.', h: 'Certificate No.', t: 'text' },
     { q: 'Cost (INR)', h: 'Cost (INR)', t: 'num', help: 'Total cost for this group. Leave blank if not known yet.' },
-    { q: 'Certificate Photo Link', h: 'Certificate Photo', t: 'url', help: 'Paste the Google Drive link to the certificate' }
+    { q: 'Certificate Photo Link', h: 'Certificate Photo', t: 'url', help: 'Paste the Google Drive link to the certificate, or choose a photo below' }
   ];
   let uid = 0;
   function field(f) {
@@ -403,7 +403,7 @@
     return btn;
   }
   function submit(btn, action, payload, onDone) {
-    btn.disabled = true; const label = btn.textContent; btn.textContent = 'Saving…';
+    btn.disabled = true; const label = btn.textContent; btn.textContent = payload && payload.photo ? 'Saving and uploading photo…' : 'Saving…';
     call({ action: action, token: token, fields: payload }).then(j => {
       btn.disabled = false; btn.textContent = label;
       if (!j.ok && /session/i.test(j.error || '')) return lockInv('Inventory session ended. Enter the code again. Nothing was saved.');
@@ -416,6 +416,47 @@
   }
 
   // Fields that had a value and were emptied: erased only after a second press of Save.
+  // Photo picker: opens the iPhone Photos library or camera, shrinks the photo on the phone, and sends it with Save.
+  function shrink(file) {
+    return new Promise((ok, bad) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const max = 1800, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.round(img.naturalWidth * k), h = Math.round(img.naturalHeight * k);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); bad(new Error('This photo could not be read. Try another photo.')); };
+      img.src = url;
+    });
+  }
+  function photoPicker(F, nameHint) {
+    const box = el('div', 'fm-photo');
+    const lab = el('label', 'ghost fm-pick', '📷 Choose photo'); const inp = el('input', 'fm-file'); inp.type = 'file'; inp.accept = 'image/*'; lab.appendChild(inp);
+    const prev = el('div', 'fm-prev'); prev.hidden = true;
+    const img = el('img'); img.alt = 'Chosen photo'; const info = el('div', 'fm-help');
+    const rm = el('button', 'iv-link', 'Remove photo'); rm.type = 'button';
+    const side = el('div'); side.appendChild(info); side.appendChild(rm);
+    prev.appendChild(img); prev.appendChild(side);
+    box.appendChild(lab); box.appendChild(prev);
+    F.w.insertBefore(box, F.er);
+    const st = { data: null };
+    const label = () => 'Saved to your Drive photos folder as "' + nameHint() + '.jpg" when you press Save. The link is filled in for you.';
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0]; inp.value = '';
+      if (!f) return;
+      prev.hidden = false; img.removeAttribute('src'); info.textContent = 'Preparing the photo…'; F.er.textContent = '';
+      shrink(f).then(d => { st.data = d; img.src = d; info.textContent = label(); F.inp.disabled = true; },
+                     e => { st.data = null; prev.hidden = true; F.er.textContent = e.message; });
+    };
+    rm.onclick = () => st.reset();
+    st.reset = () => { st.data = null; prev.hidden = true; F.inp.disabled = false; };
+    st.refresh = () => { if (st.data) info.textContent = label(); };
+    st.payload = () => st.data ? { data: st.data.split(',')[1], mime: 'image/jpeg' } : null;
+    return st;
+  }
+
   function erased(F, extra) {
     return F.filter(x => x.orig && !x.val()).map(x => x.f.q).concat(extra || []);
   }
@@ -469,6 +510,7 @@
     const F = PIECE_F.map(f => field(f));
     // Status: "Sold" is set only through Mark as sold
     Array.prototype.slice.call(F[0].inp.options).forEach(o => { if (/^sold$/i.test(o.value)) o.remove(); });
+    const photo = photoPicker(F.find(x => x.f.q === 'Photo Link'), () => mode === 'new' ? (/^NX-/.test(preview.textContent) ? preview.textContent : 'the new SKU') : ((findPiece(updF.val()) || {})._sku || 'the SKU'));
 
     // Locked exchange rate (only once the tracker has the Locked Rate column)
     const RATE = 'Locked Rate (INR to CAD)', hasRate = (DATA.ph || []).indexOf(RATE) > -1, live = (DATA.lists || {}).liveRate;
@@ -515,7 +557,7 @@
       const parts = [code('Item Type'), code('Metal'), code('Main Diamond Shape')];
       preview.textContent = parts.every(Boolean) ? ['NX'].concat(parts, [H.next]).join('-') : 'Choose Item Type, Metal and Main Diamond Shape';
     }
-    ['Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => byQ(q).inp.addEventListener('change', () => { updatePreview(); updSkuLine(); }));
+    ['Item Type', 'Metal', 'Main Diamond Shape'].forEach(q => byQ(q).inp.addEventListener('change', () => { updatePreview(); updSkuLine(); photo.refresh(); }));
     // Update mode: show what the SKU becomes when item type, metal or shape is corrected
     function updSkuLine() {
       skuChg.innerHTML = ''; skuChg.hidden = true;
@@ -548,7 +590,7 @@
       const soldP = p && group(p) === 'sold';
       F[0].inp.disabled = !!soldP;
       F[0].er.textContent = soldP ? 'Sold. To change the status, use Undo sale on the piece screen.' : '';
-      rateUi(p);
+      rateUi(p); photo.reset();
       oldNotes.textContent = p && get(p, 'Notes') ? 'Existing notes: ' + get(p, 'Notes') : '';
       eraseNotes.w.hidden = !(p && get(p, 'Notes')); eraseNotes.cb.checked = false;
       delBtn.hidden = !p; delBtn.reset(); confirmKey = '';
@@ -564,7 +606,7 @@
       newBox.hidden = m !== 'new'; updBox.hidden = m !== 'upd';
       ['Status', 'Item Type'].forEach(q => { byQ(q).w.querySelector('label').textContent = q + (m === 'new' ? ' *' : ''); });
       ['Metal', 'Main Diamond Shape'].forEach(q => { byQ(q).w.querySelector('label').textContent = q + (m === 'new' ? ' *' : ''); });
-      if (m === 'new') { F.forEach(x => x.set('')); F[0].inp.disabled = false; oldNotes.textContent = ''; eraseNotes.w.hidden = true; delBtn.hidden = true; skuChg.hidden = true; loadedSku = null; updatePreview(); rateUi(null); } else prefill(true);
+      if (m === 'new') { F.forEach(x => x.set('')); F[0].inp.disabled = false; oldNotes.textContent = ''; eraseNotes.w.hidden = true; delBtn.hidden = true; skuChg.hidden = true; loadedSku = null; updatePreview(); rateUi(null); photo.reset(); } else prefill(true);
     }
     bNew.onclick = () => setMode('new'); bUpd.onclick = () => setMode('upd');
     if (opt.sku) updF.inp.value = opt.sku;
@@ -602,6 +644,7 @@
       });
       const n = notes.ta.value.trim(); if (n) out.Notes = n;
       const clears = mode === 'upd' ? erased(F.filter(x => !x.inp.disabled), eraseNotes.cb.checked ? ['Notes'] : []) : [];
+      if (photo.payload()) out.photo = photo.payload();
       if (mode === 'upd' && Object.keys(out).length <= 2 && !clears.length) return showRes(resBox, 'Nothing changed, so nothing was saved.', false);
       if (clears.length && confirmKey !== clears.join('|')) {
         confirmKey = clears.join('|');
@@ -640,6 +683,7 @@
     const state = el('div', 'fm-state'); body.appendChild(state);
 
     const F = DIA_F.map(f => field(f));
+    const photo = photoPicker(F.find(x => x.f.q === 'Certificate Photo Link'), () => ((findPiece(skuF.val()) || {})._sku || 'SKU') + ' ' + (roleF.val() || 'Role') + ' certificate');
     const grid = el('div', 'fm two'); F.forEach(x => grid.appendChild(x.w)); body.appendChild(grid);
     const oldNotes = el('p', 'fm-help'); body.appendChild(oldNotes);
     const eraseNotes = eraseCheckbox('Erase the existing notes'); body.appendChild(eraseNotes.w);
@@ -682,6 +726,7 @@
       } else if (skuF.val()) have.appendChild(el('div', 'fm-help', 'No piece with this SKU. Add the piece first with the Piece form.'));
       current = p && role ? list.find(d => get(d, 'Diamond Role') === role) || null : null;
       F.forEach(x => x.set(current ? get(current, x.f.h) : ''));
+      photo.reset();
       oldNotes.textContent = current && get(current, 'Notes') ? 'Existing notes: ' + get(current, 'Notes') : '';
       eraseNotes.w.hidden = !(current && get(current, 'Notes')); eraseNotes.cb.checked = false;
       delBtn.hidden = !current; delBtn.reset(); confirmKey = '';
@@ -707,7 +752,8 @@
       });
       const n = notes.ta.value.trim(); if (n) out.Notes = n;
       const clears = current ? erased(F, eraseNotes.cb.checked ? ['Notes'] : []) : [];
-      if (current && Object.keys(out).length <= 2 && !clears.length) return showRes(resBox, 'Nothing changed, so nothing was saved.', false);
+      if (photo.payload()) out.photo = photo.payload();
+      if (current && Object.keys(out).length <= 2 && !clears.length && !out.photo) return showRes(resBox, 'Nothing changed, so nothing was saved.', false);
       if (clears.length && confirmKey !== clears.join('|')) {
         confirmKey = clears.join('|');
         return showRes(resBox, 'You emptied: ' + clears.join(', ') + '. Press Save diamond again to erase ' + (clears.length > 1 ? 'these values' : 'this value') + ', or put the value back.', false);
