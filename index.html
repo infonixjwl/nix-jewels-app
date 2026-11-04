@@ -17,10 +17,10 @@
 <script>if('serviceWorker' in navigator)addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})</script>
 </head>
 <body>
-<div class="wrap" id="app" hidden>
+<div class="wrap" id="app">
 <header>
   <img class="logo" src="logo.png" alt="Nix Jewels" onerror="this.replaceWith(Object.assign(document.createElement('b'),{textContent:'Nix Jewels',className:'wm'}))">
-  <div class="bar"><span class="timer" id="timer"></span><button class="theme" id="lockNow" type="button">Lock</button><button class="theme" id="theme" type="button">Theme</button></div>
+  <div class="bar"><button class="theme" id="theme" type="button">Theme</button></div>
 </header>
 
 <main id="viewCalc" data-tab="gold">
@@ -83,28 +83,6 @@
 <div id="toast" hidden></div>
 <nav class="nv" aria-label="Main"><button type="button" class="on" data-v="calc" aria-current="page"><span>🧮</span>Calculator</button><button type="button" data-v="inv"><span>📦</span>Inventory</button></nav>
 </div>
-<div id="lock">
-  <div class="lockbox" id="lockEnter" hidden>
-    <img class="lg" src="logo.png" alt="Nix Jewels" onerror="this.hidden=true">
-    <div class="sub">Enter your PIN code. A session lasts 15 minutes.</div>
-    <div class="row"><div><label for="pin">PIN code</label><input id="pin" type="password" autocomplete="off" inputmode="text"></div></div>
-    <div class="err" id="pinErr" role="alert"></div>
-    <button class="btn" id="unlock" type="button" style="width:100%">Unlock</button>
-  </div>
-  <div class="lockbox" id="lockSetup" hidden>
-    <h2>Create your PIN code</h2>
-    <div class="sub">Choose 8 or more characters. Your PIN is never saved. This creates a scrambled code (a hash) to paste into a file called pin.js.</div>
-    <div class="row"><div><label for="np1">New PIN code</label><input id="np1" type="password" autocomplete="new-password"></div>
-    <div><label for="np2">Repeat PIN code</label><input id="np2" type="password" autocomplete="new-password"></div></div>
-    <div class="err" id="setupErr" role="alert"></div>
-    <button class="btn" id="mk" type="button" style="width:100%">Create PIN code</button>
-    <div id="setupOut" hidden style="margin-top:14px">
-      <div class="sub" style="margin-bottom:6px">Save this as a file named <b>pin.js</b> in your repo (create it, or replace the old one), then commit:</div>
-      <textarea id="setupText" readonly></textarea>
-    </div>
-  </div>
-</div>
-<script src="pin.js"></script>
 <script src="app.js"></script>
 <script src="calc.js"></script>
 <script src="inventory.js"></script>

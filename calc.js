@@ -124,6 +124,5 @@
   }
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&auto&&Date.now()-lastAuto>60000)silentRefresh()});
   NixApp.on('unlock',startApp);
-  NixApp.on('lock',stopAuto);
   NixApp.on('view',function(v){if(v==='calc'&&auto&&Date.now()-lastAuto>60000)silentRefresh()});
 })();
