@@ -59,7 +59,8 @@
   }
 
   /* ---------- Calculations ---------- */
-  var summary='';
+  var summary='',gMode='market';
+  try{if(localStorage.getItem('nix_gmode')==='house')gMode='house'}catch(e){}
   function conv(v,f,t){var r={USD:1,CAD:fx.CAD,INR:fx.INR};return v/r[f]*r[t]}
   function calc(){
     var a=num($('amt').value),f=$('from').value,t=$('to').value;
@@ -70,6 +71,10 @@
     }else{$('curOut').textContent='–';$('curInv').textContent='';$('curAll').innerHTML=''}
 
     var K=num($('karat').value),w=num($('gw').value),lab=num($('lab').value)||0,prem=num($('prem').value)||0;
+    var house=gMode==='house';
+    $('mkt').hidden=house;$('premBox').hidden=house;$('mktLab').hidden=house;$('pgBox').hidden=house;$('house').hidden=!house;$('goldSell').hidden=!house;
+    document.querySelectorAll('#gMode button').forEach(function(b){b.classList.toggle('on',b.dataset.m===gMode)});
+    if(house){calcHouse(w);return pgTable(prem)}
     document.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c.dataset.k===String(K))});
     var gUSD=gold.usdoz?gold.usdoz/OZ*(1+prem/100):NaN;
     summary='';
@@ -83,7 +88,33 @@
       $('goldSub').textContent=w+' g × '+K+'K price '+C(rateU)+' per g';
       summary=K+'K gold, '+w+' g at '+C(rateU)+'/g: metal CAD '+C(mU)+', labour CAD '+C(lU)+', total CAD '+C(tU)+'. Gold '+fmt(gold.usdoz,'USD')+'/oz, 1 USD = '+fx.CAD.toFixed(4)+' CAD (rates dated '+fx.date+').';
     }else{$('goldBig').textContent='–';$('goldAlt').textContent='';$('goldBrk').textContent='';$('goldSub').textContent=gold.usdoz?'Enter the gold weight.':'Waiting for the gold price.'}
+    $('goldLbl').textContent='Total cost (CAD)';
+    pgTable(prem);
+  }
 
+  /* In-house method for 14K: fixed rupee rates (editable), plus a profit range on top of the total */
+  function calcHouse(w){
+    var rate=num($('hRate').value)||0,lab=num($('hLab').value)||0,per=$('hLabU').value,other=num($('hOther').value)||0,dia=num($('hDia').value)||0;
+    var p1=num($('hP1').value),p2=num($('hP2').value);
+    var I=function(v){return fmt(v,'INR',0)},Cd=function(v){return fx.INR?fmt(conv(v,'INR','CAD'),'CAD'):''};
+    $('goldLbl').textContent='Total cost (CAD), in-house method';
+    if(!(w>0)){$('goldBig').textContent='–';$('goldAlt').textContent='';$('goldBrk').textContent='';$('goldSub').textContent='Enter the gold weight.';$('goldSell').textContent='';summary='';return}
+    var g=w*rate,l=per==='g'?w*lab:lab,t=g+l+other+dia;
+    $('goldBig').textContent=fx.INR?Cd(t):I(t);
+    $('goldAlt').textContent=I(t)+(fx.INR?'  ·  1 INR = '+conv(1,'INR','CAD').toFixed(5)+' CAD':'  ·  CAD needs the exchange rate');
+    $('goldBrk').textContent='Gold '+I(g)+'  +  Labour '+I(l)+'  +  Other '+I(other)+(dia?'  +  Diamonds '+I(dia):'');
+    $('goldSub').textContent=w+' g × '+I(rate)+' per g'+(per==='g'?'  ·  labour '+I(lab)+' per g':'');
+    var sell='',sum='';
+    if(isFinite(p1)){
+      var a=t*(1+p1/100),b=isFinite(p2)?t*(1+p2/100):a,range=isFinite(p2)&&p2!==p1;
+      sell='Selling price ('+p1+(range?'–'+p2:'')+'% profit): '+(fx.INR?Cd(a)+(range?' – '+Cd(b):''):I(a)+(range?' – '+I(b):''));
+      sum=' Selling price at '+p1+(range?'–'+p2:'')+'%: '+(fx.INR?Cd(a)+(range?' to '+Cd(b):''):I(a)+(range?' to '+I(b):''))+'.';
+    }
+    $('goldSell').textContent=sell;
+    summary='14K in-house, '+w+' g: gold '+I(g)+', labour '+I(l)+', other '+I(other)+(dia?', diamonds '+I(dia):'')+', total '+I(t)+(fx.INR?' ('+Cd(t)+' at 1 INR = '+conv(1,'INR','CAD').toFixed(5)+' CAD)':'')+'.'+sum;
+  }
+  function pgTable(prem){
+    var gUSD=gold.usdoz?gold.usdoz/OZ*(1+prem/100):NaN;
     $('pgTbl').innerHTML=(isFinite(gUSD)&&fx.CAD)?[24,22,21,18,14,10,9].map(function(k){var u=gUSD*k/24;
       return '<tr><td>'+k+'K</td><td>'+fmt(u,'USD')+'</td><td>'+fmt(conv(u,'USD','CAD'),'CAD')+'</td><td>'+fmt(conv(u,'USD','INR'),'INR')+'</td></tr>'}).join('')
       :'<tr><td colspan="4" style="text-align:left">Waiting for live prices.</td></tr>';
@@ -95,7 +126,9 @@
   function refreshFx(){return busy($('rfFx'),'Refreshing…',fetchFx()).then(function(ok){render(!ok,false)})}
   function refreshGold(){return busy($('rfGold'),'Refreshing…',Promise.all([fetchFx(),fetchGold()])).then(function(r){render(!r[0],!r[1])})}
 
-  ['amt','from','to','karat','gw','prem','lab','labCur'].forEach(function(id){$(id).addEventListener('input',function(){calc();save()})});
+  ['amt','from','to','karat','gw','prem','lab','labCur','hRate','hLab','hLabU','hOther','hDia','hP1','hP2'].forEach(function(id){$(id).addEventListener('input',function(){calc();save()})});
+  $('hLabU').addEventListener('change',calc);
+  document.querySelectorAll('#gMode button').forEach(function(b){b.addEventListener('click',function(){gMode=b.dataset.m;try{localStorage.setItem('nix_gmode',gMode)}catch(e){}calc()})});
   function refreshAll(){return busy($('rfAll'),'Refreshing…',Promise.all([fetchFx(),fetchGold()])).then(function(r){render(!r[0],!r[1])})}
   $('rfAll').addEventListener('click',refreshAll);
   document.querySelectorAll('input[inputmode="decimal"]').forEach(function(i){i.addEventListener('focus',function(){setTimeout(function(){try{i.select()}catch(e){}},0)})});

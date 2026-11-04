@@ -40,26 +40,42 @@
   <section class="card" id="cGold" aria-labelledby="h-gold">
     <div class="head"><h2 id="h-gold">Gold cost</h2><button class="btn sm" id="rfGold" type="button">Refresh gold price</button></div>
     <div id="goldWarn"></div>
+    <div class="seg" id="gMode"><button type="button" class="on" data-m="market">Market price</button><button type="button" data-m="house">In-house (14K)</button></div>
+    <div id="mkt">
     <label>Gold purity</label>
     <div class="chips" id="chips">
       <button class="chip" data-k="9" type="button">9K</button><button class="chip" data-k="10" type="button">10K</button><button class="chip" data-k="14" type="button">14K</button><button class="chip" data-k="18" type="button">18K</button><button class="chip" data-k="21" type="button">21K</button><button class="chip" data-k="22" type="button">22K</button><button class="chip" data-k="24" type="button">24K</button>
     </div>
     <input id="karat" type="hidden" value="14">
+    </div>
     <div class="row r2">
       <div><label for="gw">Gold weight</label><div class="in"><input id="gw" inputmode="decimal" value="0"><span>g</span></div></div>
-      <div><label for="prem">Dealer premium on spot</label><div class="in"><input id="prem" inputmode="decimal" value="7"><span>%</span></div></div>
+      <div id="premBox"><label for="prem">Dealer premium on spot</label><div class="in"><input id="prem" inputmode="decimal" value="7"><span>%</span></div></div>
     </div>
-    <div class="row"><div><label for="lab">Labour / making charge</label><div style="display:grid;grid-template-columns:1fr 92px;gap:6px"><input id="lab" inputmode="decimal" value="0"><select id="labCur"><option>USD</option><option selected>CAD</option><option>INR</option></select></div></div></div>
+    <div id="house" hidden>
+      <div class="row r2">
+        <div><label for="hRate">Gold rate (14K)</label><div class="in"><input id="hRate" inputmode="decimal" value="10000"><span>₹/g</span></div></div>
+        <div><label for="hOther">Other costs (per piece)</label><div class="in"><input id="hOther" inputmode="decimal" value="3500"><span>₹</span></div></div>
+      </div>
+      <div class="row"><div><label for="hLab">Labour</label><div style="display:grid;grid-template-columns:1fr 120px;gap:6px"><div class="in"><input id="hLab" inputmode="decimal" value="1000"><span>₹</span></div><select id="hLabU"><option value="g" selected>per gram</option><option value="pc">per piece</option></select></div></div></div>
+      <div class="row"><div><label for="hDia">Diamond cost (optional)</label><div class="in"><input id="hDia" inputmode="decimal" value="0"><span>₹</span></div></div></div>
+      <div class="row r2">
+        <div><label for="hP1">Profit from</label><div class="in"><input id="hP1" inputmode="decimal" value="23"><span>%</span></div></div>
+        <div><label for="hP2">Profit to</label><div class="in"><input id="hP2" inputmode="decimal" value="30"><span>%</span></div></div>
+      </div>
+    </div>
+    <div class="row" id="mktLab"><div><label for="lab">Labour / making charge</label><div style="display:grid;grid-template-columns:1fr 92px;gap:6px"><input id="lab" inputmode="decimal" value="0"><select id="labCur"><option>USD</option><option selected>CAD</option><option>INR</option></select></div></div></div>
     <div class="result">
-      <div class="l">Total cost (CAD)</div>
+      <div class="l" id="goldLbl">Total cost (CAD)</div>
       <div class="big" id="goldBig">–</div>
       <div class="gl"></div>
       <div class="a" id="goldAlt"></div>
       <div class="b" id="goldBrk"></div>
       <div class="b" id="goldSub"></div>
+      <div class="sell" id="goldSell" hidden></div>
       <button class="btn cp" id="cp" type="button">Copy summary</button>
     </div>
-    <details><summary>Price per gram by purity</summary>
+    <details id="pgBox"><summary>Price per gram by purity</summary>
       <table><thead><tr><th>Purity</th><th>USD / g</th><th>CAD / g</th><th>INR / g</th></tr></thead><tbody id="pgTbl"></tbody></table>
       <div class="sub" style="margin-top:8px">Metal value only, with the dealer premium. Excludes wastage and labour.</div></details>
   </section>

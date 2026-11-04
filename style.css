@@ -156,3 +156,5 @@ select:disabled{opacity:.6}
 .iv-thumb{width:52px;height:52px;border-radius:10px;background:var(--soft);overflow:hidden;flex-shrink:0;display:block}
 .iv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 @media (max-width:420px){.iv-row .pill{max-width:110px;white-space:normal;text-align:center}}
+#gMode{margin:0 0 14px}
+.result .sell{font-weight:700;font-size:16px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.25);font-variant-numeric:tabular-nums}
