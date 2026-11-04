@@ -69,21 +69,19 @@
       $('curAll').innerHTML=['USD','CAD','INR'].map(function(c){return '<tr><td>'+c+'</td><td>'+fmt(conv(a,f,c),c)+'</td></tr>'}).join('');
     }else{$('curOut').textContent='–';$('curInv').textContent='';$('curAll').innerHTML=''}
 
-    var K=num($('karat').value),w=num($('gw').value),fw=num($('wt').value),loss=num($('loss').value)||0,lab=num($('lab').value)||0,prem=num($('prem').value)||0;
+    var K=num($('karat').value),w=num($('gw').value),lab=num($('lab').value)||0,prem=num($('prem').value)||0;
     document.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c.dataset.k===String(K))});
-    var over=fw>0&&w>fw,n=$('wtNote');
-    n.textContent=over?'Gold weight is more than the finished weight. Check both entries.':(fw>0&&w>0?'Stones and other materials: '+(fw-w).toFixed(3)+' g':'');
-    n.style.color=over?'var(--warn)':'';
     var gUSD=gold.usdoz?gold.usdoz/OZ*(1+prem/100):NaN;
     summary='';
     if(isFinite(gUSD)&&fx.CAD&&w>0){
-      var pure=w*(1+loss/100)*K/24,mU=gUSD*pure,lU=conv(lab,$('labCur').value,'USD'),tU=mU+lU;
+      // gold weight x today's price per gram for the chosen karat
+      var rateU=gUSD*K/24,mU=w*rateU,lU=conv(lab,$('labCur').value,'USD'),tU=mU+lU;
       var C=function(v){return fmt(conv(v,'USD','CAD'),'CAD')};
       $('goldBig').textContent=C(tU);
       $('goldAlt').textContent=fmt(tU,'USD')+'  ·  '+fmt(conv(tU,'USD','INR'),'INR',0);
       $('goldBrk').textContent='Metal '+C(mU)+'  +  Labour '+C(lU);
-      $('goldSub').textContent=w+' g of '+K+'K'+(loss?' (+'+loss+'% wastage)':'')+' = '+pure.toFixed(3)+' g pure gold';
-      summary=K+'K gold, '+w+' g: metal CAD '+C(mU)+', labour CAD '+C(lU)+', total CAD '+C(tU)+'. Gold '+fmt(gold.usdoz,'USD')+'/oz, 1 USD = '+fx.CAD.toFixed(4)+' CAD (rates dated '+fx.date+').';
+      $('goldSub').textContent=w+' g × '+K+'K price '+C(rateU)+' per g';
+      summary=K+'K gold, '+w+' g at '+C(rateU)+'/g: metal CAD '+C(mU)+', labour CAD '+C(lU)+', total CAD '+C(tU)+'. Gold '+fmt(gold.usdoz,'USD')+'/oz, 1 USD = '+fx.CAD.toFixed(4)+' CAD (rates dated '+fx.date+').';
     }else{$('goldBig').textContent='–';$('goldAlt').textContent='';$('goldBrk').textContent='';$('goldSub').textContent=gold.usdoz?'Enter the gold weight.':'Waiting for the gold price.'}
 
     $('pgTbl').innerHTML=(isFinite(gUSD)&&fx.CAD)?[24,22,21,18,14,10,9].map(function(k){var u=gUSD*k/24;
@@ -97,7 +95,7 @@
   function refreshFx(){return busy($('rfFx'),'Refreshing…',fetchFx()).then(function(ok){render(!ok,false)})}
   function refreshGold(){return busy($('rfGold'),'Refreshing…',Promise.all([fetchFx(),fetchGold()])).then(function(r){render(!r[0],!r[1])})}
 
-  ['amt','from','to','karat','wt','gw','loss','prem','lab','labCur'].forEach(function(id){$(id).addEventListener('input',function(){calc();save()})});
+  ['amt','from','to','karat','gw','prem','lab','labCur'].forEach(function(id){$(id).addEventListener('input',function(){calc();save()})});
   function refreshAll(){return busy($('rfAll'),'Refreshing…',Promise.all([fetchFx(),fetchGold()])).then(function(r){render(!r[0],!r[1])})}
   $('rfAll').addEventListener('click',refreshAll);
   document.querySelectorAll('input[inputmode="decimal"]').forEach(function(i){i.addEventListener('focus',function(){setTimeout(function(){try{i.select()}catch(e){}},0)})});

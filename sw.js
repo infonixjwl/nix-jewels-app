@@ -1,4 +1,4 @@
-const C = 'nix-app-v8';
+const C = 'nix-app-v9';
 // Never cached: live price services (calculator) and the Apps Script web app (its address carries the access code).
 const LIVE = /(^|\.)(gold-api\.com|frankfurter\.dev|frankfurter\.app|jsdelivr\.net|pages\.dev|script\.google\.com|script\.googleusercontent\.com)$/;
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'calc.js', 'inventory.js', 'pin.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'logo.png'];
