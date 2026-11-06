@@ -42,7 +42,7 @@
     const nav = document.querySelector('.nv');
     if (nav) {
       const k = document.createElement('div'); k.className = 'dk dk-keys';
-      k.innerHTML = '<b>Shortcuts</b><br><kbd>/</kbd> search stock<br><kbd>I</kbd> inventory · <kbd>C</kbd> calculator<br><kbd>N</kbd> new piece · <kbd>Esc</kbd> close panel';
+      k.innerHTML = '<b>Shortcuts</b><br><kbd>/</kbd> search stock<br><kbd>I</kbd> inventory · <kbd>C</kbd> calculator<br><kbd>E</kbd> estimator · <kbd>N</kbd> new piece<br><kbd>Esc</kbd> close panel';
       nav.appendChild(k);
     }
 

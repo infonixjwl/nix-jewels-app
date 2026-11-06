@@ -815,7 +815,16 @@
     open: s => { const p = DATA && findPiece(s); if (p) openDetail(p); },
     edit: s => { if (DATA) openPiece({ mode: 'upd', sku: s }); },
     newPiece: () => { if (DATA) openPiece(); },
-    diamond: s => { if (DATA) openDiamond(s ? { sku: s } : {}); }
+    diamond: s => { if (DATA) openDiamond(s ? { sku: s } : {}); },
+    // Sends a save to the backend with the current session (used by the desktop estimator)
+    api: (action, fields) => {
+      if (!token) return Promise.reject(new Error('Inventory is locked or offline. Unlock it with your code (internet on), then try again.'));
+      return call({ action: action, token: token, fields: fields }).then(j => {
+        if (!j.ok && /session/i.test(j.error || '')) { lockInv('Inventory session ended. Enter the code again. Nothing was saved.'); throw new Error('Your session ended. Unlock Inventory again; nothing was saved.'); }
+        if (j.data) store(j.data);
+        return j;
+      });
+    }
   };
 
   NixApp.on('unlock', () => {
