@@ -1,7 +1,7 @@
-const C = 'nix-app-v12';
+const C = 'nix-app-v13';
 // Never cached: live price services (calculator) and the Apps Script web app (its address carries the access code).
 const LIVE = /(^|\.)(gold-api\.com|frankfurter\.dev|frankfurter\.app|jsdelivr\.net|pages\.dev|script\.google\.com|script\.googleusercontent\.com)$/;
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'calc.js', 'inventory.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'logo.png'];
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'calc.js', 'inventory.js', 'desktop.css', 'desktop.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'logo.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(C).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))));
   self.skipWaiting();

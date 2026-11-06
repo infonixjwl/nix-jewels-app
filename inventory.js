@@ -66,7 +66,7 @@
     box.appendChild(c);
   }
   function clearSession() { token = ''; endT = 0; ss.del(TOKK); ss.del(ENDK); if (expiry) { clearInterval(expiry); expiry = null; } }
-  function lockInv(msg) { clearSession(); DATA = null; closePanel(); showLogin(msg, false); }
+  function lockInv(msg) { clearSession(); DATA = null; closePanel(); showLogin(msg, false); window.dispatchEvent(new Event('nix:lock')); }
   function fail(msg) { clearSession(); showLogin(msg, true); }
   function startExpiry() {
     if (expiry) clearInterval(expiry);
@@ -801,12 +801,22 @@
       sel.value = sts.indexOf(cur) > -1 ? cur : '';
       $('ivFind').hidden = false; renderTabs(); render();
     } else { $('ivFind').hidden = true; $('ivInfo').textContent = 'Updated ' + stamp(); }
+    window.dispatchEvent(new Event('nix:data'));   // desktop.js listens (wide screens only)
   }
 
   $('ivQ').addEventListener('input', () => { DATA && DATA.pieces && render(); });
   $('ivSt').addEventListener('change', () => { DATA && DATA.pieces && render(); });
   $('ivRef').onclick = () => refresh();
   $('ivLock').onclick = () => lockInv('');
+
+  // Used by desktop.js on wide screens. Phones never call these.
+  window.NixInv = {
+    data: () => DATA,
+    open: s => { const p = DATA && findPiece(s); if (p) openDetail(p); },
+    edit: s => { if (DATA) openPiece({ mode: 'upd', sku: s }); },
+    newPiece: () => { if (DATA) openPiece(); },
+    diamond: s => { if (DATA) openDiamond(s ? { sku: s } : {}); }
+  };
 
   NixApp.on('unlock', () => {
     const t = ss.get(TOKK), e = parseInt(ss.get(ENDK) || '0', 10);
